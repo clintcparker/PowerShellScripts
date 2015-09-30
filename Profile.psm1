@@ -27,7 +27,8 @@ function Add-Path {
   )
 
   PROCESS {
-    $Path = Get-EnvironmentVariable("PATH").ToLower().Split(";")
+    $Pathfull = Get-EnvironmentVariable -Name "PATH"
+    $Path = $Pathfull.ToLower().Split(";")
     $Directory = $Directory.ToLower()
 
     foreach ($dir in $Directory) {
