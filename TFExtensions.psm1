@@ -26,7 +26,7 @@ function Initialize-Workspace {
       HelpMessage='Workspace Name')]
     [string]$Workspace_Name
     )
-        $newWS = New-Workspace -tfsUrl
+        $newWS = New-Workspace -newWorkspaceName:$Workspace_Name
         tf workfold /map $TFS_Directory $Local_Directory /workspace:$newWS
         tf get $Local_Directory /remap /recursive
 }
@@ -221,4 +221,121 @@ New-Workspace -tfsUrl:https://tfs.mycompany.com/tfs -newWorkspaceName:MY_NEW_WOR
     return $newWorkspaceName
 }
 
+function Get-TfsCodeClosure {
+    <#
+        .SYNOPSIS
+        Report the relative degree of closure of a codebase.
+        
+        .DESCRIPTION
+        Are you concerned that your codebase is a festering one? Want 
+        proof? Then run this function at the solution root and watch as 
+        it reports the number of check-ins per C# code file. This 
+        function only works against TFS source control (and the working 
+        directory must be mapped in a Workspace for the TFS PowerShell 
+        snap-in to work). The idea is that files with numerous check-ins 
+        are being modified in-place. Whereas, the Open-Closed Principle 
+        states that 
+        
+            "entities should be open for extension, but 
+             closed for modification"
+            
+        What we want to see is a budding codebase! New files, meaning new 
+        classes and methods, are preferable.
+    
+        .EXAMPLE
+        C:\PS> Get-TfsCodeClosure | Format-Table -AutoSize
+        
+        .EXAMPLE
+        C:\PS> Get-TfsCodeClosure | Export-CSV closure.csv
+    #>
+
+    Import-TfsLibraries
+
+    $filter = [Microsoft.TeamFoundation.VersionControl.Client.ChangeType] 'Add,Edit,Rename'
+
+    Get-TfsItemHistory -Include *.cs -Recurse -IncludeItems `
+        | Select-Object -Expand 'Changes' `
+        | Where-Object { ($_.ChangeType -band $filter) -ne 0 } `
+        | Select-TfsItem `
+        | Group-Object Path `
+        | Select-Object Count, Name `
+        | Sort-Object Count -Descending 
+}
+
+function Get-TfsCodeOwnership {
+    <#
+        .SYNOPSIS
+        What pieces of code are owned by someone, and how you can detect 
+        it? Owned means that they are the only one that can touch that 
+        code. Whatever it is by policy or simply because they are the 
+        only one with the skills / ability to do so.
+        
+        .DESCRIPTION
+        This would be a good way to indicate a risky location, some place 
+        that only very few people can touch and modify.
+        
+            * Find all files changed within the last year
+            * Remove all files whose changes are over a period of less than 
+              two weeks (that usually indicate a completed feature).
+            * Remove all the files that are modified by more than 2 people.
+            * Show the result and the associated names.
+            
+        .EXAMPLE
+        C:\PS> Get-TfsCodeOwnership
+        
+        Report the ownership for any C# files (.cs) that exist in this 
+        directory.
+    #>
+    
+    Import-TfsLibraries
+
+    $filter     = [Microsoft.TeamFoundation.VersionControl.Client.ChangeType] 'Add,Edit,Rename'
+    $threshold  = (Get-Date).AddYears(-1)
+    $twoWeeks   = [timespan]::FromDays(14)
+    
+    $changesets = Get-TfsItemHistory *.cs -Recurse -IncludeItems `
+        | ?{ $_.CreationDate -gt $threshold }
+    
+    $files = $changesets `
+        | Select-Object -Expand 'Changes' `
+        | ?{ ($_.ChangeType -band $filter) -ne 0 } `
+        | Select-TfsItem `
+        | Group-Object Path
+
+    $files | %{
+        $context = $_ `
+            | Select-Object -Expand Group `
+            | Select-Object -Expand Versions `
+            | Select-Object ChangesetId `
+            | % -begin { $ctx = @() } -process { $ctx += $changesets | ?{ $_.ChangesetId -eq $id.ChangesetId } } -end { $ctx }
+        
+        # Consider all files whose changes span over 2 weeks
+        $dates  = $context | Select-Object -Expand CreationDate | Sort-Object
+        $period = [datetime]($dates[0]) - [datetime]($dates[-1])
+        if(-not($period -gt $twoWeeks)) {
+            return
+        }
+        
+        # Add all files with 1 or 2 authors
+        $authors = $context | Group-Object Committer
+        if($authors.Length -gt 2) {
+            return
+        }
+        
+        $_ | Select-Object `
+            @{ Name = 'Item';    Expression = { $_.Name } }, `
+            @{ Name = 'Authors'; Expression = { $authors | Select-Object -Expand Name } }
+    }
+}
+
+function Import-TfsLibraries {
+    $snapin   = 'Microsoft.TeamFoundation.PowerShell'
+    $assembly = 'Microsoft.TeamFoundation.VersionControl.Client'
+
+    if(-not(Get-PSSnapin $snapin -Registered)) {
+        Add-PSSnapin $snapin | Out-Null
+    }
+    
+    [System.Reflection.Assembly]::LoadWithPartialName($assembly) | Out-Null   
+}
 
