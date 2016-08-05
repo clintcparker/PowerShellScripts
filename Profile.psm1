@@ -1,4 +1,4 @@
-$moduleName = "Profile"
+﻿$moduleName = "Profile"
 
 function Add-Path {
   <#
@@ -152,5 +152,7 @@ function Get-Memory{
     if ($procs -ne $null){
         $GBMemory = $($procs | Measure-Object -Sum PM).Sum / 1gb
     }
-    return $GBMemory
+    return "$GBMemory GB"
 }
+
+
