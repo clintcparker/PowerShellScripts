@@ -136,6 +136,16 @@ function Import-ProfileModules {
 }
 
 function Get-Memory{
+  <#
+    .SYNOPSIS
+      Gets memory consumption for an application
+    .DESCRIPTION
+      Get's total memory consumption for all processes with the supplied name.
+    .EXAMPLE
+      Get-Memory chrome
+    .PARAMETER Name
+      The name of the process.
+  #>
     [CmdletBinding()]
     param(
         [Parameter(
