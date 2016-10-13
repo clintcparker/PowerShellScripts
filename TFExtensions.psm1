@@ -40,50 +40,57 @@ function Get-LocalCopy {
       ValueFromPipeline=$True,
       ValueFromPipelineByPropertyName=$True,
       HelpMessage='What tfs directory would you like to add?')]
-      [Alias('TFS Directory')]
-    [string]$TFS_Directory,
+    [string]$itemspec,
         [Parameter(
       Mandatory=$True,
       ValueFromPipeline=$True,
       ValueFromPipelineByPropertyName=$True,
       HelpMessage='Where will it be mapped to?')]
-    [string]$Local_Directory,
+    [string]$output,
         [Parameter(
       Mandatory=$True,
       ValueFromPipeline=$True,
       ValueFromPipelineByPropertyName=$True,
       HelpMessage='Where will it be mapped to?')]
-    [string]$TFS_URL
+    [string]$collection,
+    [switch]$noMessage
     )
     
+    if (!$noMessage)
+    {
+        echo "Copying $itemspec to $output..."
+    }
 
-    $items = $( tf dir $TFS_Directory /collection:$TFS_URL )
+    $items = $( tf dir $itemspec /collection:$collection )
     foreach($item in $items)
     {
         if ($item -inotmatch "[:\(]"  -and $item -ne "")
         {
+            #echo $item
             if ($item -match "\$")
             {
                 #directory
-                
                 $directoryName = $item.Replace("$","");
-
                 
 
-                echo "diretory"
-                echo $directoryName
-                Get-LocalCopy -TFS_Directory $($TFS_Directory + "/" + $directoryName) -Local_Directory $($Local_Directory + "/" + $directoryName) -TFS_URL $TFS_URL;
+                #echo "diretory"
+                #echo $directoryName
+                Get-LocalCopy -itemspec $($itemspec + "/" + $directoryName) -output $($output + "/" + $directoryName) -collection $collection -noMessage;
             }
             else 
             {
-                echo "file"
-                echo $item
-                tf vc view $($TFS_Directory + "/" + $item) /collection:$TFS_URL /output:$($Local_Directory + "/" + $item)
+                #echo "file"
+                #echo $($itemspec + "/" + $item)
+                tf vc view $($itemspec + "/" + $item) /collection:$collection /output:$($output + "/" + $item)
             }
         }
     }
-
-
+    
+    if (!$noMessage)
+    {
+        echo "...complete"
+        dir $output
+    }
 }
 
 
