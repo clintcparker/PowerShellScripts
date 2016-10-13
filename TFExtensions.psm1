@@ -53,6 +53,12 @@ function Get-LocalCopy {
       ValueFromPipelineByPropertyName=$True,
       HelpMessage='Where will it be mapped to?')]
     [string]$collection,
+        [Parameter(
+      Mandatory=$False,
+      ValueFromPipeline=$True,
+      ValueFromPipelineByPropertyName=$True,
+      HelpMessage='Where will it be mapped to?')]
+    [string]$version,
     [switch]$noMessage
     )
     
@@ -61,27 +67,31 @@ function Get-LocalCopy {
         echo "Copying $itemspec to $output..."
     }
 
-    $items = $( tf dir $itemspec /collection:$collection )
+    $tfDirArgs = $itemspec  + " /collection:$collection "
+    if ($version -ne "")
+    {
+        $tfDirArgs =  $tfDirArgs + " /version:$version "
+    }
+    $items = Invoke-Expression  $("tf dir $tfDirArgs")
     foreach($item in $items)
     {
         if ($item -inotmatch "[:\(]"  -and $item -ne "")
         {
             #echo $item
-            if ($item -match "\$")
+            if ($item -match "\$") #directory
             {
-                #directory
                 $directoryName = $item.Replace("$","");
-                
-
-                #echo "diretory"
-                #echo $directoryName
-                Get-LocalCopy -itemspec $($itemspec + "/" + $directoryName) -output $($output + "/" + $directoryName) -collection $collection -noMessage;
+                Get-LocalCopy -itemspec $($itemspec + "/" + $directoryName) -output $($output + "/" + $directoryName) -collection $collection  -version:$version  -noMessage;
             }
-            else 
+            else #file
             {
-                #echo "file"
-                #echo $($itemspec + "/" + $item)
-                tf vc view $($itemspec + "/" + $item) /collection:$collection /output:$($output + "/" + $item)
+                $tfViewArgs = $($itemspec + "/" + $item)  + " /collection:$collection " + " /output:$($output + "/" + $item) "
+                if ($version -ne "")
+                {
+                    $tfViewArgs =  $tfViewArgs + " /version:$version "
+                }
+                $tfViewCommand = $("tf view $tfViewArgs")
+                $outVal = $(Invoke-Expression $tfViewCommand)
             }
         }
     }
