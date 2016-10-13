@@ -30,6 +30,65 @@ function Initialize-Workspace {
         tf workfold /map $TFS_Directory $Local_Directory /workspace:$newWS
         tf get $Local_Directory /remap /recursive
 }
+
+
+function Get-LocalCopy {
+    [CmdletBinding()]
+    param(
+                 [Parameter(
+      Mandatory=$True,
+      ValueFromPipeline=$True,
+      ValueFromPipelineByPropertyName=$True,
+      HelpMessage='What tfs directory would you like to add?')]
+      [Alias('TFS Directory')]
+    [string]$TFS_Directory,
+        [Parameter(
+      Mandatory=$True,
+      ValueFromPipeline=$True,
+      ValueFromPipelineByPropertyName=$True,
+      HelpMessage='Where will it be mapped to?')]
+    [string]$Local_Directory,
+        [Parameter(
+      Mandatory=$True,
+      ValueFromPipeline=$True,
+      ValueFromPipelineByPropertyName=$True,
+      HelpMessage='Where will it be mapped to?')]
+    [string]$TFS_URL
+    )
+    
+
+    $items = $( tf dir $TFS_Directory /collection:$TFS_URL )
+    foreach($item in $items)
+    {
+        if ($item -inotmatch "[:\(]"  -and $item -ne "")
+        {
+            if ($item -match "\$")
+            {
+                #directory
+                
+                $directoryName = $item.Replace("$","");
+
+                
+
+                echo "diretory"
+                echo $directoryName
+                Get-LocalCopy -TFS_Directory $($TFS_Directory + "/" + $directoryName) -Local_Directory $($Local_Directory + "/" + $directoryName) -TFS_URL $TFS_URL;
+            }
+            else 
+            {
+                echo "file"
+                echo $item
+                tf vc view $($TFS_Directory + "/" + $item) /collection:$TFS_URL /output:$($Local_Directory + "/" + $item)
+            }
+        }
+    }
+
+
+}
+
+
+
+
 function New-Workspace{
 <#
 
