@@ -39,7 +39,7 @@ function Get-LocalCopy {
       Mandatory=$True,
       ValueFromPipeline=$True,
       ValueFromPipelineByPropertyName=$True,
-      HelpMessage='What tfs directory would you like to add?')]
+      HelpMessage='What tfs item(s) would you like to copy?')]
     [string]$itemspec,
         [Parameter(
       Mandatory=$True,
@@ -51,13 +51,13 @@ function Get-LocalCopy {
       Mandatory=$True,
       ValueFromPipeline=$True,
       ValueFromPipelineByPropertyName=$True,
-      HelpMessage='Where will it be mapped to?')]
+      HelpMessage='What is the tfs collection URL?')]
     [string]$collection,
         [Parameter(
       Mandatory=$False,
       ValueFromPipeline=$True,
       ValueFromPipelineByPropertyName=$True,
-      HelpMessage='Where will it be mapped to?')]
+      HelpMessage='What version to get?')]
     [string]$version,
     [switch]$noMessage
     )
